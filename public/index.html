@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Mock API Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-6">
+
+        <!-- Header -->
+        <div class="mb-10 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">
+                    🚀 Mock API Studio
+                </h1>
+                <p class="text-gray-500 mt-1">
+                    Create, Manage & Test Mock APIs Instantly
+                </p>
+            </div>
+
+            <div class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-semibold shadow">
+                guestId: <span id="guestIdDisplay"></span>
+            </div>
+        </div>
+
+        <!-- Create Card -->
+        <div class="bg-white rounded-2xl shadow-md p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-6 text-gray-700">
+                Create / Update Route
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Method</label>
+                    <select id="method" class="w-full border rounded-lg px-3 py-2">
+                        <option>GET</option>
+                        <option>POST</option>
+                        <option>PUT</option>
+                        <option>DELETE</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Route</label>
+                    <input id="route" placeholder="/api/user/profile"
+                        class="w-full border rounded-lg px-3 py-2" />
+                </div>
+
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Status Code</label>
+                    <input id="status" value="200"
+                        class="w-full border rounded-lg px-3 py-2" />
+                </div>
+
+            </div>
+
+            <div class="mt-4">
+                <label class="block text-sm text-gray-600 mb-1">Response JSON</label>
+                <textarea id="body" rows="6"
+                    class="w-full border rounded-lg px-3 py-2 font-mono text-sm">
+{
+  "message": "Success"
+}
+                </textarea>
+            </div>
+
+            <button onclick="saveRoute()"
+                class="mt-5 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow transition">
+                Save Route
+            </button>
+        </div>
+
+        <!-- Route List -->
+        <div class="bg-white rounded-2xl shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-6 text-gray-700">
+                All Routes
+            </h2>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm text-left">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 font-medium text-gray-600">Method</th>
+                            <th class="px-4 py-3 font-medium text-gray-600">Route</th>
+                            <th class="px-4 py-3 font-medium text-gray-600">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="routeList" class="divide-y"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+
+/* =========================================
+   GUEST ID SYSTEM
+========================================= */
+
+function generateguestId() {
+    const now = new Date();
+    return "GUST-" +
+        now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') +
+        "-" +
+        now.getHours() +
+        now.getMinutes() +
+        now.getSeconds() +
+        "-" +
+        Math.floor(Math.random() * 1000);
+}
+
+function getOrCreateguestId() {
+    let guestId = localStorage.getItem("guestId");
+
+    if (!guestId) {
+        guestId = generateguestId();
+        localStorage.setItem("guestId", guestId);
+    }
+
+    document.getElementById("guestIdDisplay").innerText = guestId;
+    return guestId;
+}
+
+const GUST_ID = getOrCreateguestId();
+
+/* =========================================
+   ROUTE FUNCTIONS
+========================================= */
+
+async function fetchRoutes() {
+
+    const res = await fetch(`/api/list`, {
+        headers: {
+            "x-guest-id": GUST_ID
+        }
+    });
+
+    const data = await res.json();
+
+    const table = document.getElementById("routeList");
+    table.innerHTML = "";
+
+    data.forEach(r => {
+
+        const publicUrl = `/mock/${GUST_ID}${r.route}`;
+
+        table.innerHTML += `
+        <tr class="hover:bg-gray-50 transition">
+            <td class="px-4 py-3 font-semibold text-gray-700">${r.method}</td>
+            <td class="px-4 py-3 text-gray-600">${r.route}</td>
+            <td class="px-4 py-3 space-x-2">
+
+                <button onclick="editRoute('${r.method}','${r.route}')"
+                    class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-md text-xs">
+                    Edit
+                </button>
+
+                <button onclick="deleteRoute('${r.method}','${r.route}')"
+                    class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-xs">
+                    Delete
+                </button>
+
+                <button onclick="copyCurl('${r.method}','${r.route}')"
+                    class="bg-gray-800 hover:bg-black text-white px-3 py-1 rounded-md text-xs">
+                    Copy CURL
+                </button>
+
+                <!-- 
+<a href="${publicUrl}" target="_blank"
+    class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-xs">
+    Open
+</a>
+-->
+
+            </td>
+        </tr>
+        `;
+    });
+}
+
+async function saveRoute() {
+
+    const method = document.getElementById("method").value;
+    const route = document.getElementById("route").value;
+    const statusInput = document.getElementById("status").value;
+
+    let body;
+    try {
+        body = JSON.parse(document.getElementById("body").value);
+    } catch (err) {
+        alert("Invalid JSON format!");
+        return;
+    }
+
+    const status = parseInt(statusInput);
+    if (isNaN(status)) {
+        alert("Invalid status code.");
+        return;
+    }
+
+    await fetch("/api/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method, route, status, body, guestId: GUST_ID })
+    });
+
+    fetchRoutes();
+}
+
+async function deleteRoute(method, route) {
+
+    await fetch("/api/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method, route, guestId: GUST_ID })
+    });
+
+    fetchRoutes();
+}
+
+function editRoute(method, route) {
+    document.getElementById("method").value = method;
+    document.getElementById("route").value = route;
+    alert("Modify JSON and click Save.");
+}
+
+function copyCurl(method, route) {
+
+    const baseUrl = `http://localhost:5000/mock/${GUST_ID}${route}`;
+    let curlCommand = "";
+
+    if (method === "GET" || method === "DELETE") {
+        curlCommand = `curl -X ${method} "${baseUrl}"`;
+    } else {
+        const bodyText = document.getElementById("body").value || "{}";
+        curlCommand = `curl -X ${method} "${baseUrl}" -H "Content-Type: application/json" -d '${bodyText.replace(/\n/g, "")}'`;
+    }
+
+    navigator.clipboard.writeText(curlCommand);
+    alert("Public CURL copied!");
+}
+
+fetchRoutes();
+
+</script>
+
+</body>
+</html>
