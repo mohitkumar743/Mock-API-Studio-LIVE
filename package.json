@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "description": "Mock API Studio - Dynamic JSON-based mock server with route creation, update, delete and logging",
   "main": "server.js",
-    "bin": "serverexe.js",
+    "bin": "server.js",
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "pkg . --targets node18-win-x64 --output mock-api-studio-new --icon icon.ico"
+"build": "pkg . --targets node18-win-x64 --compress Brotli --output mock-api-studio-new --icon icon.ico"
+
   },
   "keywords": [
     "mock-api",

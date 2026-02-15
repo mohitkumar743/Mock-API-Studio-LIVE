@@ -59,8 +59,32 @@ app.use(express.json());
    ROOT ROUTE ONLY
 ===================================== */
 
+// app.get("/", (req, res) => {
+//     res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+// });
+
 app.get("/", (req, res) => {
+    res.sendFile(path.join(PUBLIC_DIR, "landingindex.html"));
+});
+
+app.get("/start", (req, res) => {
     res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+});
+
+app.get("/dist/style.css", (req, res) => {
+    res.sendFile(path.join(PUBLIC_DIR, "/dist/style.css"));
+});
+
+
+app.get("/downloadexe", (req, res) => {
+    const filePath = path.join(PUBLIC_DIR, "mock-api-studio.exe");
+
+    res.download(filePath, "mock-api-studio.exe", (err) => {
+        if (err) {
+            console.error("Download error:", err);
+            res.status(500).send("File not found");
+        }
+    });
 });
 
 /* =====================================

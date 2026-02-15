@@ -700,24 +700,23 @@
     window.location.href = "/start";
   }
 
-  function downloadExe() {
-    alert("🚀 Windows version is coming soon!\n\nThe .exe build will be available shortly.");
-  }
+  // function downloadExe() {
+  //   alert("🚀 Windows version is coming soon!\n\nThe .exe build will be available shortly.");
+  // }
 
 //   function downloadExe() {
-//     const permission = confirm(
-//       "This will download Mock API Studio (new.exe). Do you want to continue?"
-//     );
+//     window.location.href = "/downloadexe";
+// }
 
-//     if (permission) {
-//       const link = document.createElement("a");
-//       link.href = "/new.exe"; // Make sure file exists in same server root
-//       link.download = "new.exe";
-//       document.body.appendChild(link);
-//       link.click();
-//       document.body.removeChild(link);
-//     }
-//   }
+  function downloadExe() {
+    const permission = confirm(
+      "This will download Mock API Studio (new.exe). Do you want to continue?"
+    );
+
+    if (permission) {
+       window.location.href = "/downloadexe";
+    }
+  }
 </script>
   </body>
 </html>
