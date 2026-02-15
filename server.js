@@ -56,7 +56,15 @@ app.use(express.json());
 ===================================== */
 
 app.get("/", (req, res) => {
+    res.sendFile(path.join(PUBLIC_DIR, "landingindex.html"));
+});
+
+app.get("/start", (req, res) => {
     res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+});
+
+app.get("/dist/style.css", (req, res) => {
+    res.sendFile(path.join(PUBLIC_DIR, "/dist/style.css"));
 });
 
 /* =====================================
