@@ -233,7 +233,7 @@ function editRoute(method, route) {
 
 function copyCurl(method, route) {
 
-    const baseUrl = `http://localhost:5000/mock/${GUST_ID}${route}`;
+    const baseUrl = `https://mock.appframe.online/mock/${GUST_ID}${route}`;
     let curlCommand = "";
 
     if (method === "GET" || method === "DELETE") {
