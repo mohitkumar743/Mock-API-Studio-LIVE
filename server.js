@@ -1,48 +1,88 @@
+require("dotenv").config();
 const express = require("express");
-const fs = require("fs");
 const path = require("path");
 const cors = require("cors");
 const os = require("os");
+const mongoose = require("mongoose");
 
-// FIX for open (ESM support)
+/* FIX for open (ESM support) */
 const openBrowser = async (url) => {
     const open = (await import("open")).default;
     open(url);
 };
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 /* =====================================
-   PATH HANDLING (EXE SAFE)
+   MONGODB CONNECTION
+===================================== */
+
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log("✅ MongoDB Connected"))
+    .catch(err => console.error("Mongo Error:", err));
+
+/* =====================================
+   SCHEMA (Guest Based)
+===================================== */
+
+const mockApiSchema = new mongoose.Schema({
+    guestId: {
+        type: String,
+        required: true,
+        index: true
+    },
+    method: {
+        type: String,
+        required: true,
+        uppercase: true
+    },
+    route: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    status: {
+        type: Number,
+        default: 200
+    },
+    body: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+    },
+    headers: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+    },
+    delay: {
+        type: Number,
+        default: 0
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    }
+}, { timestamps: true });
+
+/* Unique per guest */
+mockApiSchema.index(
+    { guestId: 1, method: 1, route: 1 },
+    { unique: true }
+);
+
+const MockAPI = mongoose.model("MOCKAPI", mockApiSchema);
+
+/* =====================================
+   PATH HANDLING
 ===================================== */
 
 const basePath = process.pkg
     ? path.dirname(process.execPath)
     : __dirname;
 
-const ROUTES_DIR = path.join(basePath, "routes");
-const LOGS_DIR = path.join(basePath, "logs");
-
 const PUBLIC_DIR = process.pkg
     ? path.join(__dirname, "public")
     : path.join(basePath, "public");
-
-const CSV_LOG_FILE = path.join(LOGS_DIR, "audit_logs.csv");
-
-/* =====================================
-   INIT FOLDERS
-===================================== */
-
-if (!fs.existsSync(ROUTES_DIR)) fs.mkdirSync(ROUTES_DIR);
-if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR);
-
-if (!fs.existsSync(CSV_LOG_FILE)) {
-    fs.writeFileSync(
-        CSV_LOG_FILE,
-        "Timestamp,Action,GuestID,Method,Route,Status,IP\n"
-    );
-}
 
 /* =====================================
    MIDDLEWARE
@@ -52,7 +92,7 @@ app.use(cors());
 app.use(express.json());
 
 /* =====================================
-   ROOT ROUTE
+   ROOT ROUTES
 ===================================== */
 
 app.get("/", (req, res) => {
@@ -64,23 +104,212 @@ app.get("/start", (req, res) => {
 });
 
 app.get("/dist/style.css", (req, res) => {
-    res.sendFile(path.join(PUBLIC_DIR, "/dist/style.css"));
-});
-
-
-app.get("/downloadexe", (req, res) => {
-    const filePath = path.join(PUBLIC_DIR, "mock-api-studio.exe");
-
-    res.download(filePath, "mock-api-studio.exe", (err) => {
-        if (err) {
-            console.error("Download error:", err);
-            res.status(500).send("File not found");
-        }
-    });
+    res.sendFile(path.join(PUBLIC_DIR, "dist/style.css"));
 });
 
 /* =====================================
-   UTIL FUNCTIONS
+   CREATE ROUTE
+===================================== */
+
+app.post("/api/create", async (req, res) => {
+
+    const { guestId, method, route, status, body, headers, delay } = req.body;
+
+    if (!guestId || !method || !route) {
+        return res.status(400).json({
+            message: "guestId, method, route required"
+        });
+    }
+
+    try {
+        const newRoute = await MockAPI.create({
+            guestId,
+            method: method.toUpperCase(),
+            route,
+            status: parseInt(status) || 200,
+            body: body || {},
+            headers: headers || {},
+            delay: delay || 0
+        });
+
+        res.json({
+            message: "Route Created Successfully",
+            data: newRoute
+        });
+
+    } catch (err) {
+
+        if (err.code === 11000) {
+            return res.status(400).json({
+                message: "Route already exists for this guest"
+            });
+        }
+
+        res.status(500).json({
+            message: "Error Creating Route",
+            error: err.message
+        });
+    }
+});
+
+/* =====================================
+   LIST ROUTES (Header Required)
+===================================== */
+
+app.get("/api/list", async (req, res) => {
+
+    const guestId = req.headers["x-guest-id"];
+
+    if (!guestId) {
+        return res.status(400).json({
+            message: "x-guest-id header required"
+        });
+    }
+
+    try {
+        const routes = await MockAPI.find({ guestId });
+        res.json(routes);
+    } catch (err) {
+        res.status(500).json({
+            message: "Error Fetching Routes"
+        });
+    }
+});
+
+/* =====================================
+   UPDATE ROUTE
+===================================== */
+
+app.put("/api/update", async (req, res) => {
+
+    const { guestId, method, route, status, body, headers, delay, isActive } = req.body;
+
+    if (!guestId || !method || !route) {
+        return res.status(400).json({
+            message: "guestId, method, route required"
+        });
+    }
+
+    try {
+        const updated = await MockAPI.findOneAndUpdate(
+            { guestId, method: method.toUpperCase(), route },
+            {
+                status: parseInt(status) || 200,
+                body: body || {},
+                headers: headers || {},
+                delay: delay || 0,
+                isActive: isActive ?? true
+            },
+            { new: true }
+        );
+
+        if (!updated) {
+            return res.status(404).json({ message: "Route Not Found" });
+        }
+
+        res.json({
+            message: "Route Updated Successfully",
+            data: updated
+        });
+
+    } catch (err) {
+        res.status(500).json({
+            message: "Error Updating Route",
+            error: err.message
+        });
+    }
+});
+
+/* =====================================
+   DELETE ROUTE
+===================================== */
+
+app.delete("/api/delete", async (req, res) => {
+
+    const { guestId, method, route } = req.body;
+
+    if (!guestId || !method || !route) {
+        return res.status(400).json({
+            message: "guestId, method, route required"
+        });
+    }
+
+    try {
+        const deleted = await MockAPI.findOneAndDelete({
+            guestId,
+            method: method.toUpperCase(),
+            route
+        });
+
+        if (!deleted) {
+            return res.status(404).json({ message: "Route Not Found" });
+        }
+
+        res.json({
+            message: "Route Deleted Successfully"
+        });
+
+    } catch (err) {
+        res.status(500).json({
+            message: "Error Deleting Route",
+            error: err.message
+        });
+    }
+});
+
+/* =====================================
+   PUBLIC MOCK ROUTE (NO HEADER REQUIRED)
+===================================== */
+
+app.use("/mock/:guestId", async (req, res) => {
+
+    try {
+
+        const guestId = req.params.guestId;
+        const method = req.method.toUpperCase();
+
+        // Extract real route
+        const route = req.originalUrl
+            .replace(`/mock/${guestId}`, "")
+            .split("?")[0];
+
+        const mockRoute = await MockAPI.findOne({
+            guestId,
+            method,
+            route,
+            isActive: true
+        });
+
+        if (!mockRoute) {
+            return res.status(404).json({
+                message: "Mock Route Not Found"
+            });
+        }
+
+        if (mockRoute.delay > 0) {
+            await new Promise(resolve =>
+                setTimeout(resolve, mockRoute.delay)
+            );
+        }
+
+        if (mockRoute.headers) {
+            Object.entries(mockRoute.headers).forEach(([key, value]) => {
+                res.setHeader(key, value);
+            });
+        }
+
+        res.status(mockRoute.status).json(mockRoute.body);
+
+    } catch (err) {
+        res.status(500).json({
+            message: "Mock Server Error",
+            error: err.message
+        });
+    }
+});
+
+/* =====================================
+   START SERVER
 ===================================== */
 
 function getLocalIP() {
@@ -95,275 +324,17 @@ function getLocalIP() {
     return "localhost";
 }
 
-function writeLog({ action, guestId = "", method = "", route = "", status = "", ip = "" }) {
-    const timestamp = new Date().toISOString();
-    const row = `"${timestamp}","${action}","${guestId}","${method}","${route}","${status}","${ip}"\n`;
-
-    fs.appendFile(CSV_LOG_FILE, row, (err) => {
-        if (err) console.error("Log Write Error:", err.message);
-    });
-}
-
-/* =====================================
-   CREATE ROUTE
-===================================== */
-
-app.post("/api/create", (req, res) => {
-    const { guestId, method, route, status, body } = req.body;
-    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-
-    if (!guestId || !method || !route) {
-        return res.status(400).json({ message: "GuestID, Method & Route required" });
-    }
-
-    try {
-        const routeParts = route.split("/").filter(Boolean);
-
-        const dirPath = path.join(
-            ROUTES_DIR,
-            `guest_${guestId}`,
-            ...routeParts
-        );
-
-        fs.mkdirSync(dirPath, { recursive: true });
-
-        const filePath = path.join(dirPath, `${method.toUpperCase()}.json`);
-        const validStatus = parseInt(status) || 200;
-
-        fs.writeFileSync(
-            filePath,
-            JSON.stringify({ status: validStatus, body: body || {} }, null, 2)
-        );
-
-        writeLog({
-            action: "ROUTE_CREATED",
-            guestId,
-            method,
-            route,
-            status: validStatus,
-            ip
-        });
-
-        res.json({ message: "Route Created Successfully" });
-
-    } catch (err) {
-        res.status(500).json({ message: "Error Creating Route", error: err.message });
-    }
-});
-
-/* =====================================
-   LIST ROUTES
-===================================== */
-
-app.get("/api/list", (req, res) => {
-
-    const guestId = req.headers["x-guest-id"];
-    const guestDir = path.join(ROUTES_DIR, `guest_${guestId}`);
-    const routes = [];
-
-    function scan(dir, base = "") {
-        if (!fs.existsSync(dir)) return;
-
-        const items = fs.readdirSync(dir);
-
-        items.forEach(item => {
-            const fullPath = path.join(dir, item);
-            const stat = fs.statSync(fullPath);
-
-            if (stat.isDirectory()) {
-                scan(fullPath, base + "/" + item);
-            } else if (item.endsWith(".json")) {
-                routes.push({
-                    method: item.replace(".json", ""),
-                    route: base
-                });
-            }
-        });
-    }
-
-    scan(guestDir);
-    res.json(routes);
-});
-
-/* =====================================
-   UPDATE ROUTE
-===================================== */
-
-app.put("/api/update", (req, res) => {
-
-    const { guestId, method, route, status, body } = req.body;
-    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-
-    if (!guestId || !method || !route) {
-        return res.status(400).json({ message: "GuestID, Method & Route required" });
-    }
-
-    try {
-        const filePath = path.join(
-            ROUTES_DIR,
-            `guest_${guestId}`,
-            ...route.split("/").filter(Boolean),
-            `${method.toUpperCase()}.json`
-        );
-
-        if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ message: "Route Not Found" });
-        }
-
-        const validStatus = parseInt(status) || 200;
-
-        fs.writeFileSync(
-            filePath,
-            JSON.stringify({ status: validStatus, body: body || {} }, null, 2)
-        );
-
-        writeLog({
-            action: "ROUTE_UPDATED",
-            guestId,
-            method,
-            route,
-            status: validStatus,
-            ip
-        });
-
-        res.json({ message: "Route Updated Successfully" });
-
-    } catch (err) {
-        res.status(500).json({ message: "Error Updating Route", error: err.message });
-    }
-});
-
-/* =====================================
-   DELETE ROUTE
-===================================== */
-
-app.delete("/api/delete", (req, res) => {
-
-    const { guestId, method, route } = req.body;
-    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-
-    if (!guestId || !method || !route) {
-        return res.status(400).json({ message: "GuestID, Method & Route required" });
-    }
-
-    try {
-        const filePath = path.join(
-            ROUTES_DIR,
-            `guest_${guestId}`,
-            ...route.split("/").filter(Boolean),
-            `${method.toUpperCase()}.json`
-        );
-
-        if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ message: "Route Not Found" });
-        }
-
-        fs.unlinkSync(filePath);
-
-        writeLog({
-            action: "ROUTE_DELETED",
-            guestId,
-            method,
-            route,
-            ip
-        });
-
-        res.json({ message: "Route Deleted Successfully" });
-
-    } catch (err) {
-        res.status(500).json({ message: "Error Deleting Route", error: err.message });
-    }
-});
-
-/* =====================================
-   PUBLIC MOCK HANDLER
-===================================== */
-
-app.use("/mock/:guestId", (req, res) => {
-
-    try {
-
-        const { guestId } = req.params;
-        const method = req.method.toUpperCase();
-        const cleanPath = req.path;
-
-        const filePath = path.join(
-            ROUTES_DIR,
-            `guest_${guestId}`,
-            ...cleanPath.split("/").filter(Boolean),
-            `${method}.json`
-        );
-
-        let statusCode = 404;
-        let responseBody = { message: "Mock Route Not Found" };
-
-        if (fs.existsSync(filePath)) {
-            const fileData = JSON.parse(fs.readFileSync(filePath));
-            statusCode = parseInt(fileData.status) || 200;
-            responseBody = fileData.body || {};
-        }
-
-        res.status(statusCode).json(responseBody);
-
-    } catch (err) {
-        res.status(500).json({ message: "Mock Server Error", error: err.message });
-    }
-});
-
-/* =====================================
-   START SERVER
-===================================== */
-
-// app.listen(PORT, "0.0.0.0", async () => {
-
-//     const localIP = getLocalIP();
-
-//     console.log("🚀 Mock API Studio Running");
-//     console.log(`Local:   http://localhost:${PORT}`);
-//     console.log(`Network: http://${localIP}:${PORT}`);
-
-//     // try {
-//     //     await openBrowser(`http://localhost:${PORT}`);
-//     // } catch {
-//     //     console.log("Browser auto-open failed.");
-//     // }
-// });
-
-
-
 app.listen(PORT, "0.0.0.0", async () => {
 
     const localIP = getLocalIP();
 
-    console.clear();
+    console.log("🚀 Mock API Studio Running");
+    console.log(`Local:   http://localhost:${PORT}`);
+    console.log(`Network: http://${localIP}:${PORT}`);
 
-     console.log(`
-================================================================================
-
-███╗   ███╗ ██████╗  ██████╗██╗  ██╗     █████╗ ██████╗ ██╗
-████╗ ████║██╔═══██╗██╔════╝██║ ██╔╝    ██╔══██╗██╔══██╗██║
-██╔████╔██║██║   ██║██║     █████╔╝     ███████║██████╔╝██║
-██║╚██╔╝██║██║   ██║██║     ██╔═██╗     ██╔══██║██╔═══╝ ██║
-██║ ╚═╝ ██║╚██████╔╝╚██████╗██║  ██╗    ██║  ██║██║     ██║
-╚═╝     ╚═╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝    ╚═╝  ╚═╝╚═╝     ╚═╝
-
- ███████╗████████╗██╗   ██╗██████╗ ██╗ ██████╗ 
- ██╔════╝╚══██╔══╝██║   ██║██╔══██╗██║██╔═══██╗
- ███████╗   ██║   ██║   ██║██║  ██║██║██║   ██║
- ╚════██║   ██║   ██║   ██║██║  ██║██║██║   ██║
- ███████║   ██║   ╚██████╔╝██████╔╝██║╚██████╔╝
- ╚══════╝   ╚═╝    ╚═════╝ ╚═════╝ ╚═╝ ╚═════╝ 
-
-================================================================================
-
-🚀 MOCK API STUDIO
-💻 Developed By Mohit Kumar Instagram(the.mohit.kumar)
-
-------------------------------------------------------------
-Server Running Successfully
-Local:   http://localhost:${PORT}
-Network: http://${localIP}:${PORT}
-------------------------------------------------------------
-    `);
-
+    try {
+        await openBrowser(`http://localhost:${PORT}`);
+    } catch {
+        console.log("Browser auto-open failed.");
+    }
 });

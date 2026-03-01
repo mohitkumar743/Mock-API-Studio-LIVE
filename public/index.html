@@ -1,250 +1,336 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <title>Mock API Studio</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <title>Mock API Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-50 min-h-screen">
 
-    <div class="max-w-6xl mx-auto p-6">
+<!-- TOP NAV -->
+<div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-bold">Mock API Studio</h1>
+      <p class="text-sm text-blue-100">Create, Manage & Share Mock APIs</p>
+    </div>
+    <div class="flex items-center gap-3 bg-white/20 px-4 py-2 rounded-lg backdrop-blur">
+      <span class="text-xs opacity-80">Guest ID</span>
+      <span id="guestIdDisplay" class="font-semibold text-sm"></span>
+      <button onclick="copyGuestId()" class="text-xs bg-white text-blue-600 px-2 py-1 rounded">
+        Copy
+      </button>
+    </div>
+  </div>
+</div>
 
-        <!-- Header -->
-        <div class="mb-10 flex justify-between items-center">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-800">
-                    🚀 Mock API Studio
-                </h1>
-                <p class="text-gray-500 mt-1">
-                    Create, Manage & Test Mock APIs Instantly
-                </p>
-            </div>
+<div class="max-w-7xl mx-auto px-6 py-8">
 
-            <div class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-semibold shadow">
-                guestId: <span id="guestIdDisplay"></span>
-            </div>
-        </div>
+  <!-- CREATE / UPDATE PANEL -->
+  <div class="bg-white rounded-2xl shadow-sm border p-6 mb-8">
 
-        <!-- Create Card -->
-        <div class="bg-white rounded-2xl shadow-md p-6 mb-8">
-            <h2 class="text-xl font-semibold mb-6 text-gray-700">
-                Create / Update Route
-            </h2>
+    <div class="flex justify-between items-center mb-6">
+      <h2 id="formTitle" class="text-lg font-semibold text-gray-700">
+        Create New Route
+      </h2>
+      <span id="modeBadge" class="text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-600">
+        CREATE
+      </span>
+    </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="grid md:grid-cols-3 gap-4">
 
-                <div>
-                    <label class="block text-sm text-gray-600 mb-1">Method</label>
-                    <select id="method" class="w-full border rounded-lg px-3 py-2">
-                        <option>GET</option>
-                        <option>POST</option>
-                        <option>PUT</option>
-                        <option>DELETE</option>
-                    </select>
-                </div>
+      <select id="method"
+        class="border rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500">
+        <option>GET</option>
+        <option>POST</option>
+        <option>PUT</option>
+        <option>DELETE</option>
+      </select>
 
-                <div>
-                    <label class="block text-sm text-gray-600 mb-1">Route</label>
-                    <input id="route" placeholder="/api/user/profile"
-                        class="w-full border rounded-lg px-3 py-2" />
-                </div>
+      <input id="route"
+        placeholder="/api/users"
+        class="border rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500" />
 
-                <div>
-                    <label class="block text-sm text-gray-600 mb-1">Status Code</label>
-                    <input id="status" value="200"
-                        class="w-full border rounded-lg px-3 py-2" />
-                </div>
-
-            </div>
-
-            <div class="mt-4">
-                <label class="block text-sm text-gray-600 mb-1">Response JSON</label>
-                <textarea id="body" rows="6"
-                    class="w-full border rounded-lg px-3 py-2 font-mono text-sm">
-{
-  "message": "Success"
-}
-                </textarea>
-            </div>
-
-            <button onclick="saveRoute()"
-                class="mt-5 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow transition">
-                Save Route
-            </button>
-        </div>
-
-        <!-- Route List -->
-        <div class="bg-white rounded-2xl shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-6 text-gray-700">
-                All Routes
-            </h2>
-
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm text-left">
-                    <thead class="bg-gray-50 border-b">
-                        <tr>
-                            <th class="px-4 py-3 font-medium text-gray-600">Method</th>
-                            <th class="px-4 py-3 font-medium text-gray-600">Route</th>
-                            <th class="px-4 py-3 font-medium text-gray-600">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="routeList" class="divide-y"></tbody>
-                </table>
-            </div>
-        </div>
+      <input id="status"
+        value="200"
+        class="border rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500" />
 
     </div>
 
+    <textarea id="body" rows="6"
+      class="mt-4 w-full border rounded-xl px-4 py-3 font-mono text-sm focus:ring-2 focus:ring-blue-500">
+{
+  "message": "Success"
+}
+    </textarea>
+
+    <div class="mt-5 flex gap-3">
+      <button id="saveBtn"
+        onclick="saveRoute()"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl flex items-center gap-2">
+        <span id="btnText">Save Route</span>
+        <span id="btnLoader" class="hidden animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4"></span>
+      </button>
+
+      <button onclick="cancelEdit()"
+        class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-xl">
+        Cancel
+      </button>
+    </div>
+  </div>
+
+  <!-- ROUTE TABLE -->
+  <div class="bg-white rounded-2xl shadow-sm border p-6">
+
+    <h2 class="text-lg font-semibold text-gray-700 mb-6">
+      Your Mock Routes
+    </h2>
+
+    <div id="emptyState" class="text-center py-12 text-gray-400 hidden">
+      No routes created yet.
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-gray-500 border-b">
+          <tr>
+            <th class="text-left py-3">Method</th>
+            <th class="text-left py-3">Route</th>
+            <th class="text-left py-3">Public URL</th>
+            <th class="text-right py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="routeList"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div id="toast"
+  class="fixed bottom-6 right-6 bg-gray-900 text-white px-6 py-3 rounded-xl shadow-lg hidden">
+</div>
+
 <script>
 
-/* =========================================
-   GUEST ID SYSTEM
-========================================= */
+/* ===============================
+   GUEST ID
+================================ */
 
 function generateguestId() {
-    const now = new Date();
-    return "GUST-" +
-        now.getFullYear() +
-        String(now.getMonth() + 1).padStart(2, '0') +
-        String(now.getDate()).padStart(2, '0') +
-        "-" +
-        now.getHours() +
-        now.getMinutes() +
-        now.getSeconds() +
-        "-" +
-        Math.floor(Math.random() * 1000);
+  return "GUST-" + Date.now();
 }
 
 function getOrCreateguestId() {
-    let guestId = localStorage.getItem("guestId");
-
-    if (!guestId) {
-        guestId = generateguestId();
-        localStorage.setItem("guestId", guestId);
-    }
-
-    document.getElementById("guestIdDisplay").innerText = guestId;
-    return guestId;
+  let guestId = localStorage.getItem("guestId");
+  if (!guestId) {
+    guestId = generateguestId();
+    localStorage.setItem("guestId", guestId);
+  }
+  document.getElementById("guestIdDisplay").innerText = guestId;
+  return guestId;
 }
 
 const GUST_ID = getOrCreateguestId();
 
-/* =========================================
-   ROUTE FUNCTIONS
-========================================= */
+/* ===============================
+   UI HELPERS
+================================ */
+
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  toast.innerText = msg;
+  toast.classList.remove("hidden");
+  setTimeout(() => toast.classList.add("hidden"), 3000);
+}
+
+function copyGuestId() {
+  navigator.clipboard.writeText(GUST_ID);
+  showToast("Guest ID copied");
+}
+
+function methodBadge(method) {
+  const colors = {
+    GET: "bg-green-100 text-green-600",
+    POST: "bg-blue-100 text-blue-600",
+    PUT: "bg-yellow-100 text-yellow-600",
+    DELETE: "bg-red-100 text-red-600"
+  };
+  return `<span class="px-3 py-1 rounded-full text-xs font-semibold ${colors[method]}">${method}</span>`;
+}
+
+/* ===============================
+   STATE
+================================ */
+
+let isEditMode = false;
+
+/* ===============================
+   FETCH ROUTES
+================================ */
 
 async function fetchRoutes() {
 
-    const res = await fetch(`/api/list`, {
-        headers: {
-            "x-guest-id": GUST_ID
-        }
-    });
+  const res = await fetch("/api/list", {
+    headers: { "x-guest-id": GUST_ID }
+  });
 
-    const data = await res.json();
+  const data = await res.json();
+  const table = document.getElementById("routeList");
+  const empty = document.getElementById("emptyState");
 
-    const table = document.getElementById("routeList");
-    table.innerHTML = "";
+  table.innerHTML = "";
 
-    data.forEach(r => {
+  if (!data.length) {
+    empty.classList.remove("hidden");
+    return;
+  } else {
+    empty.classList.add("hidden");
+  }
 
-        const publicUrl = `/mock/${GUST_ID}${r.route}`;
+  data.forEach(r => {
 
-        table.innerHTML += `
-        <tr class="hover:bg-gray-50 transition">
-            <td class="px-4 py-3 font-semibold text-gray-700">${r.method}</td>
-            <td class="px-4 py-3 text-gray-600">${r.route}</td>
-            <td class="px-4 py-3 space-x-2">
+    const publicUrl = `${window.location.origin}/mock/${GUST_ID}${r.route}`;
 
-                <button onclick="editRoute('${r.method}','${r.route}')"
-                    class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-md text-xs">
-                    Edit
-                </button>
-
-                <button onclick="deleteRoute('${r.method}','${r.route}')"
-                    class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-xs">
-                    Delete
-                </button>
-
-                <button onclick="copyCurl('${r.method}','${r.route}')"
-                    class="bg-gray-800 hover:bg-black text-white px-3 py-1 rounded-md text-xs">
-                    Copy CURL
-                </button>
-
-                <!-- 
-<a href="${publicUrl}" target="_blank"
-    class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-xs">
-    Open
-</a>
--->
-
-            </td>
-        </tr>
-        `;
-    });
+    table.innerHTML += `
+    <tr class="border-b hover:bg-gray-50">
+      <td class="py-3">${methodBadge(r.method)}</td>
+      <td class="py-3 font-medium">${r.route}</td>
+      <td class="py-3 text-blue-600 text-xs break-all">
+        <a href="${publicUrl}" target="_blank">${publicUrl}</a>
+      </td>
+      <td class="py-3 text-right space-x-2">
+        <button onclick='editRoute(${JSON.stringify(r)})'
+          class="text-blue-600 text-xs">Edit</button>
+        <button onclick="deleteRoute('${r.method}','${r.route}')"
+          class="text-red-600 text-xs">Delete</button>
+      </td>
+    </tr>`;
+  });
 }
+
+/* ===============================
+   SAVE
+================================ */
 
 async function saveRoute() {
 
-    const method = document.getElementById("method").value;
-    const route = document.getElementById("route").value;
-    const statusInput = document.getElementById("status").value;
+  const btn = document.getElementById("saveBtn");
+  const btnText = document.getElementById("btnText");
+  const loader = document.getElementById("btnLoader");
 
-    let body;
-    try {
-        body = JSON.parse(document.getElementById("body").value);
-    } catch (err) {
-        alert("Invalid JSON format!");
-        return;
-    }
+  btn.disabled = true;
+  loader.classList.remove("hidden");
+  btnText.innerText = "Processing";
 
-    const status = parseInt(statusInput);
-    if (isNaN(status)) {
-        alert("Invalid status code.");
-        return;
-    }
+  const method = document.getElementById("method").value;
+  const route = document.getElementById("route").value;
+  const status = parseInt(document.getElementById("status").value);
 
-    await fetch("/api/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ method, route, status, body, guestId: GUST_ID })
-    });
+  let body;
+  try {
+    body = JSON.parse(document.getElementById("body").value);
+  } catch {
+    showToast("Invalid JSON");
+    btn.disabled = false;
+    loader.classList.add("hidden");
+    btnText.innerText = "Save Route";
+    return;
+  }
 
+  const endpoint = isEditMode ? "/api/update" : "/api/create";
+  const httpMethod = isEditMode ? "PUT" : "POST";
+
+  const res = await fetch(endpoint, {
+    method: httpMethod,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      guestId: GUST_ID,
+      method,
+      route,
+      status,
+      body
+    })
+  });
+
+  const result = await res.json();
+
+  if (res.ok) {
+    showToast(result.message);
+    cancelEdit();
     fetchRoutes();
+  } else {
+    showToast(result.message);
+  }
+
+  btn.disabled = false;
+  loader.classList.add("hidden");
+  btnText.innerText = "Save Route";
+}
+
+/* ===============================
+   EDIT / DELETE
+================================ */
+
+function editRoute(data) {
+
+  document.getElementById("method").value = data.method;
+  document.getElementById("route").value = data.route;
+  document.getElementById("status").value = data.status;
+  document.getElementById("body").value =
+    JSON.stringify(data.body, null, 2);
+
+  isEditMode = true;
+
+  document.getElementById("formTitle").innerText = "Update Route";
+  document.getElementById("modeBadge").innerText = "EDIT";
+  document.getElementById("modeBadge").className =
+    "text-xs px-3 py-1 rounded-full bg-yellow-100 text-yellow-600";
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 async function deleteRoute(method, route) {
 
-    await fetch("/api/delete", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ method, route, guestId: GUST_ID })
-    });
+  if (!confirm("Delete this route?")) return;
 
-    fetchRoutes();
+  await fetch("/api/delete", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      guestId: GUST_ID,
+      method,
+      route
+    })
+  });
+
+  showToast("Route deleted");
+  fetchRoutes();
 }
 
-function editRoute(method, route) {
-    document.getElementById("method").value = method;
-    document.getElementById("route").value = route;
-    alert("Modify JSON and click Save.");
-}
+/* ===============================
+   CANCEL
+================================ */
 
-function copyCurl(method, route) {
+function cancelEdit() {
 
-    const baseUrl = `https://mock.appframe.online/mock/${GUST_ID}${route}`;
-    let curlCommand = "";
+  isEditMode = false;
 
-    if (method === "GET" || method === "DELETE") {
-        curlCommand = `curl -X ${method} "${baseUrl}"`;
-    } else {
-        const bodyText = document.getElementById("body").value || "{}";
-        curlCommand = `curl -X ${method} "${baseUrl}" -H "Content-Type: application/json" -d '${bodyText.replace(/\n/g, "")}'`;
-    }
+  document.getElementById("formTitle").innerText = "Create New Route";
+  document.getElementById("modeBadge").innerText = "CREATE";
+  document.getElementById("modeBadge").className =
+    "text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-600";
 
-    navigator.clipboard.writeText(curlCommand);
-    alert("Public CURL copied!");
+  document.getElementById("route").value = "";
+  document.getElementById("status").value = "200";
+  document.getElementById("body").value =
+`{
+  "message": "Success"
+}`;
 }
 
 fetchRoutes();
